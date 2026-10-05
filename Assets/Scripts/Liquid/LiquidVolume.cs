@@ -2,61 +2,60 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 
-// Scene の編集モードでも実行する。
+// Scene の編集モードでも更新する。
 [ExecuteAlways]
+[RequireComponent(typeof(MeshFilter))]
+[RequireComponent(typeof(MeshRenderer))]
 public class LiquidVolume : MonoBehaviour
 {
-    // 選択中の Water の内部の点を Scene に表示する。
+    // 内部の点を Scene に表示するかどうか。
     public bool ShowPoints;
     // 水量の割合。0 は空、1 は満杯。
     [Range(0f, 1f)] public float Fill = 0.5f;
     // 最も長い辺の分割数。
     [Range(5, 80)] public int Resolution = 40;
 
-    // 点の総数。
-    [SerializeField, HideInInspector] int pointCount;
-    // 点の数 × 間隔の3乗で求めた体積の近似値。
-    [SerializeField, HideInInspector] float estimatedLocalVolume;
-    // 点をローカル座標。
+    // 点のローカル座標の配列。
     [SerializeField, HideInInspector] Vector3[] localPoints;
-    // 点の生成時に使ったメッシュと、そのメッシュを囲む範囲を保存する。
-    [SerializeField, HideInInspector] Mesh bakedMesh;
+    // 点の数。
+    [SerializeField, HideInInspector] int pointCount;
+    // メッシュを囲む範囲を保存する。
     [SerializeField, HideInInspector] Bounds bakedBounds;
 
+    // 点のワールド高さの配列。
+    double[] heights;
+    // 低い順に並べた点のうち、水面に対応するインデックス。
+    int surfaceRank = -1;
+
+    // 水の割合（Shaderに値を渡すためのId）
     static readonly int FillHeightId = Shader.PropertyToID("_FillHeight");
     MeshRenderer waterRenderer;
-    // マテリアル自体を変更せず、この Renderer にだけ水位を渡すために使う。
+    // 水位を渡すために使う。
     MaterialPropertyBlock properties;
-    // 各点の高さを計算して並べ替えるための作業用配列。
-    double[] heights;
-
-    // LiquidBubble用
-    int[] pointIndices;
-    int surfaceIndex = -1;
 
     // コンポーネントのメニューから実行し、内部の点を事前に生成して保存する。
     [ContextMenu("Bake Volume Points")]
     void BakeVolumePoints()
     {
-#if UNITY_EDITOR
-        // モデルのメッシュと頂点を取得する。
+        // モデルのメッシュを取得する。
         Mesh mesh = GetComponent<MeshFilter>().sharedMesh;
+
+        // モデルの頂点を取得する。
         Vector3[] vertices = mesh.vertices;
 
-        // Vector3 の頂点をそのまま使い、内部の点を Vector3 配列として受け取る。
-        double cellSize;
+        // 点群を生成する、点と点の距離も計算する。
         localPoints = LiquidVolumeMath.Bake(
-            vertices, mesh.triangles, Resolution, out cellSize
+            vertices, mesh.triangles, Resolution, out double cellSize
         );
 
-        // 点の数、体積、生成時のメッシュ情報を記録する。
+        // 点の数を記録する。
         pointCount = localPoints.Length;
-        estimatedLocalVolume = (float)(pointCount * cellSize * cellSize * cellSize);
-        bakedMesh = mesh;
+        // 囲むBoxを記録する。
         bakedBounds = mesh.bounds;
 
-        // 水面と Scene の表示を更新する。
+        // 表示を更新する。
         UpdateSurface();
+#if UNITY_EDITOR
         UnityEditor.SceneView.RepaintAll();
 #endif
     }
@@ -77,9 +76,6 @@ public class LiquidVolume : MonoBehaviour
 
         if (heights == null || heights.Length != localPoints.Length)
             heights = new double[localPoints.Length];
-
-        if (pointIndices == null || pointIndices.Length != localPoints.Length)
-            pointIndices = new int[localPoints.Length];
     }
 
     void Update()
@@ -104,23 +100,26 @@ public class LiquidVolume : MonoBehaviour
         {
             Vector3 p = localPoints[i];
             heights[i] = (double)m.m10 * p.x + (double)m.m11 * p.y + (double)m.m12 * p.z;
-
-            //
-            pointIndices[i] = i;
         }
 
-        // 例えば、点が 5個 あり、Fill = 0.5 の場合：
-        // index = 四捨五入(0.5 × 4) = 2
-        // index ：  0  1  2  3  4
-        // height： [1, 2, 3, 4, 5]
-        //                ↑
-        // level = 3
-        Array.Sort(heights, pointIndices);
-        int index = Mathf.RoundToInt(Fill * (heights.Length - 1));
-        surfaceIndex = index;
-        double level = heights[index];
+        // 例：点が5個あり、Fill = 0.5の場合
+        // surfaceRank = Mathf.RoundToInt(0.5 × 4) = 2
+        //
+        // rank | heights[rank] | localPoints | 
+        // -----|---------------|-------------|
+        //   0  |       1       |  (2, 8, 4)  |
+        //   1  |       2       |  (7, 3, 6)  |
+        //   2  |       3       |  (8, 5, 3)  | ← surfaceRank
+        //   3  |       4       |  (5, 6, 7)  |
+        //
+        // ※ 回転なし、スケール1の場合。高さはローカル座標のYと一致する。
 
-        // LiquidShaderの設定
+        // 低い順に並べ替え、対応する点の座標も一緒に並べ替える
+        Array.Sort(heights, localPoints);
+        surfaceRank = Mathf.RoundToInt(Fill * (heights.Length - 1));
+        double level = heights[surfaceRank];
+
+        // LiquidShaderに設定
         waterRenderer.GetPropertyBlock(properties);
         properties.SetFloat(FillHeightId, (float)level);
         waterRenderer.SetPropertyBlock(properties);
@@ -154,30 +153,25 @@ public class LiquidVolume : MonoBehaviour
         Gizmos.matrix = previous;
     }
 
+    // 泡の発生位置を取得する。
     public bool TryGetBubblePosition(out Vector3 worldPosition)
     {
         worldPosition = Vector3.zero;
 
-        if (Fill <= 0f
-            || localPoints == null
-            || pointIndices == null
-            || surfaceIndex < 0)
-        {
+        if (Fill <= 0f || localPoints == null || surfaceRank < 0)
             return false;
-        }
 
-        int rank = UnityEngine.Random.Range(0, surfaceIndex + 1);
+        // 水面以下の点をランダムに選ぶ
+        int rank = UnityEngine.Random.Range(0, surfaceRank + 1);
 
-        int pointIndex = pointIndices[rank];
-
-        worldPosition =
-            transform.TransformPoint(localPoints[pointIndex]);
+        // localPointsはワールド座標のYが低い順に並べ替え済みなので、rankで直接点を選べる。
+        worldPosition = transform.TransformPoint(localPoints[rank]);
 
         return true;
     }
 }
 
-// Vector3 を使った点の生成と水位計算。交点や高さの計算には double を使う。
+// 点の生成と水位計算
 public static class LiquidVolumeMath
 {
     public static Vector3[] Bake(Vector3[] vertices, int[] triangles, int resolution, out double cellSize)
@@ -278,7 +272,7 @@ public static class LiquidVolumeMath
                     continue;
                 }
 
-                // 交点を2つずつ取り出す。位相幾何学
+                // 交点を2つずつ取り出す。
                 for (int i = 0; i < hits.Count; i += 2)
                 {
                     double y1 = hits[i];
@@ -303,7 +297,7 @@ public static class LiquidVolumeMath
     // 元のリストから、重複する交点を取り除く。
     static void RemoveDuplicateHits(List<double> hits, double epsilon)
     {
-        List<double> uniqueHits = new List<double>();
+        var uniqueHits = new List<double>();
 
         foreach (double height in hits)
         {
