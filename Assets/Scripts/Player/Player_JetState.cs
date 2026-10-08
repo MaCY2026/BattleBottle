@@ -20,6 +20,14 @@ public class Player_JetState : State
     public override void Update()
     {
         base.Update();
+        // 液体を減らす
+        player.waterVolume.Fill -= player.liquidLosRate * Time.deltaTime;
+        if (player.waterVolume.Fill <= 0f)
+        {
+            player.waterVolume.Fill = 0f;
+            stateMachine.ChangeState(player.hoverState);
+        }
+
         // 時間経過に応じて噴射チャージ量を増やす
         player.jetChargeLevel += Time.deltaTime * player.maxJetChargeLevel / player.timeToTopSpeed;
         player.jetChargeLevel = Mathf.Clamp(player.jetChargeLevel, 0f, player.maxJetChargeLevel);

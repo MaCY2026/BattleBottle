@@ -34,7 +34,6 @@ public class Player_MoveState : State
         else if (keyboard.rightArrowKey.isPressed)
             rotate.z -= 5.0f;
 
-
         // 位置を更新
         player.transform.position += direction * player.moveSpeed * Time.deltaTime;
         //回転を更新

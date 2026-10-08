@@ -5,6 +5,8 @@ public class Player : MonoBehaviour
     private StateMachine stateMachine;
     public Rigidbody2D rb { get; private set; }
     private Collider2D col;
+    public ParticleSystem drops;
+    public LiquidVolume waterVolume;
     public bool groundDetected { get; private set; }
 
     //ステートの変数の宣言
@@ -22,6 +24,8 @@ public class Player : MonoBehaviour
     [SerializeField] public float jetConversionRate = 0.01f;
     [SerializeField] public float jetChargeDecreaseRate = 0.3f;
     [SerializeField] public float rollSpeed = 28.0f;
+    [SerializeField] public float maxDropRate = 120f;
+    [SerializeField] public float liquidLosRate = 0.1f;
 
     //初期化の前段階
     private void Awake()
@@ -52,6 +56,13 @@ public class Player : MonoBehaviour
         UpdateGrounded();
         //現在のステートを更新
         stateMachine.UpdateActiveState();
+
+        // チャージ量を0～1に収める
+        float chargeRate = jetChargeLevel / maxJetChargeLevel;
+
+        // チャージ量に合わせて、水滴の発生数を変える
+        var emission = drops.emission;
+        emission.rateOverTime = maxDropRate * chargeRate;
     }
 
     public void SetVelocity(float xVelocity, float yVelocity)
