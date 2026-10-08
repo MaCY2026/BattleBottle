@@ -10,19 +10,23 @@ public class LiquidVolume : MonoBehaviour
 {
     // 内部の点を Scene に表示するかどうか。
     public bool ShowPoints;
+    // ΔH（オブジェクトの原点を基準とした、ワールドY方向の水面の相対的な高さ。）
+    public double Level { get; set; }
+    // 基準点のワールド座標（この点に基づいて、水面を決める）
+    public Vector3 PivotPoint { get; set; }
     // 水量の割合。0 は空、1 は満杯。
     [Range(0f, 1f)] public float Fill = 0.5f;
     // 最も長い辺の分割数。
     [Range(5, 80)] public int Resolution = 40;
 
-    // 点のローカル座標の配列。
+    // サンプリング点のローカル座標の配列。
     [SerializeField, HideInInspector] Vector3[] localPoints;
-    // 点の数。
+    // サンプリング点の数。
     [SerializeField, HideInInspector] int pointCount;
     // メッシュを囲む範囲を保存する。
     [SerializeField, HideInInspector] Bounds bakedBounds;
 
-    // 点のワールド高さの配列。
+    // サンプリング点のワールドY座標から、オブジェクトの原点のワールドY座標を引いた相対的な高さ。
     double[] heights;
     // 低い順に並べた点のうち、水面に対応するインデックス。
     int surfaceRank = -1;
@@ -117,11 +121,12 @@ public class LiquidVolume : MonoBehaviour
         // 低い順に並べ替え、対応する点の座標も一緒に並べ替える
         Array.Sort(heights, localPoints);
         surfaceRank = Mathf.RoundToInt(Fill * (heights.Length - 1));
-        double level = heights[surfaceRank];
+        Level = heights[surfaceRank];
+        PivotPoint = transform.TransformPoint(localPoints[surfaceRank]);
 
         // LiquidShaderに設定
         waterRenderer.GetPropertyBlock(properties);
-        properties.SetFloat(FillHeightId, (float)level);
+        properties.SetFloat(FillHeightId, (float)Level);
         waterRenderer.SetPropertyBlock(properties);
     }
 

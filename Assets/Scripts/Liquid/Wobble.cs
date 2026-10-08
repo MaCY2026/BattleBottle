@@ -59,6 +59,16 @@ public class Wobble : MonoBehaviour
         lastRot = transform.rotation.eulerAngles;
     }
 
-
+    public Vector3 SurfaceNormal
+    {
+        get
+        {
+            return new Vector3(
+                wobbleAmountX,
+                1f,
+                -wobbleAmountZ
+            ).normalized;
+        }
+    }
 
 }

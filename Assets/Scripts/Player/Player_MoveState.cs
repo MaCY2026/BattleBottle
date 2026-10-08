@@ -3,11 +3,6 @@ using UnityEngine.InputSystem;
 
 public class Player_MoveState : State
 {
-    // 移動速度の宣言
-    [SerializeField] public float speed = 3f;
-    //回転速度の宣言
-    [SerializeField] public float rollspeed = 28.0f;
-
     public Player_MoveState(Player player, StateMachine stateMachine, string stateName) :
     base(player, stateMachine, stateName)
     {
@@ -41,12 +36,16 @@ public class Player_MoveState : State
 
 
         // 位置を更新
-        player.transform.position += direction * speed * Time.deltaTime;
+        player.transform.position += direction * player.moveSpeed * Time.deltaTime;
         //回転を更新
-        player.transform.eulerAngles += rotate *rollspeed * Time.deltaTime;
+        player.transform.eulerAngles += rotate * player.rollSpeed * Time.deltaTime;
 
         //移動していなればステートをIdleにする
-        if (direction.x ==0||rotate.z==0)
+        if (direction.x == 0 || rotate.z == 0)
             stateMachine.ChangeState(player.idleState);
+        if (keyboard.zKey.isPressed)
+        {
+            stateMachine.ChangeState(player.jetState);
+        }
     }
 }

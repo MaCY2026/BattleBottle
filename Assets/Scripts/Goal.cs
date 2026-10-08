@@ -1,12 +1,13 @@
 using UnityEngine;
 
-public class Goal: MonoBehaviour
+public class Goal : MonoBehaviour
 {
-    void OnCollisionEnter2D(Collision2D collision)
+    void OnTriggerEnter2D(Collider2D other)
     {
-        if (collision.gameObject.CompareTag("Player"))
+        if (other.gameObject.CompareTag("Player"))
         {
             Debug.Log("Goal");
+            GetComponent<SpriteRenderer>().color = Color.red;
         }
     }
 }

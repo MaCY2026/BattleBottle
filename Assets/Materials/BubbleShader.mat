@@ -51,8 +51,14 @@ Material:
         m_Offset: {x: 0, y: 0}
     m_Ints: []
     m_Floats:
+    - _CenterOpacity: 0.025
+    - _HighlightStrength: 1
+    - _Opacity: 0.8
     - _QueueControl: 0
     - _QueueOffset: 0
-    m_Colors: []
+    - _RimWidth: 0.065
+    - _ZTest: 8
+    m_Colors:
+    - _BubbleColor: {r: 0.72, g: 0.91, b: 1, a: 1}
   m_BuildTextureStacks: []
   m_AllowLocking: 1
