@@ -4,6 +4,7 @@ using UnityEngine;
 public abstract class State
 {
     protected Player player;
+    protected PlayerInputManager input;
     protected StateMachine stateMachine;
     protected string stateName;
 
@@ -14,6 +15,7 @@ public abstract class State
         this.player = player;
         this.stateMachine = stateMachine;
         this.stateName = stateName;
+        this.input = player.input;
 
         rb = player.rb;
     }

@@ -1,9 +1,9 @@
-using UnityEngine.InputSystem;
+using UnityEngine;
 
 public class Player_IdleState : State
 {
-    public Player_IdleState(Player player, StateMachine stateMachine, string stateName) :
-    base(player, stateMachine, stateName)
+    public Player_IdleState(Player player, StateMachine stateMachine, string stateName)
+        : base(player, stateMachine, stateName)
     {
     }
 
@@ -17,24 +17,39 @@ public class Player_IdleState : State
     {
         base.Update();
 
-        //キー入力を待つ変数
-        Keyboard keyboard = Keyboard.current;
-        if (keyboard == null) return;
-
-
-        //ad左右を押したら、ステートをmoveStateにする
-        if (keyboard.aKey.isPressed || keyboard.dKey.isPressed || keyboard.rightArrowKey.isPressed || keyboard.leftArrowKey.isPressed)
-        {
-            stateMachine.ChangeState(player.moveState);
-        }
-        else if (player.groundDetected && keyboard.spaceKey.isPressed)
-        {
-            stateMachine.ChangeState(player.jumpState);
-        }
-        //もしZキーが押されたら
-        else if (keyboard.zKey.isPressed)
+        // 噴射
+        if (input.JetHeld)
         {
             stateMachine.ChangeState(player.jetState);
+            return;
+        }
+
+        // 地面から離れた場合
+        if (!player.groundDetected)
+        {
+            stateMachine.ChangeState(player.hoverState);
+            return;
+        }
+
+        // ジャンプ
+        if (input.JumpReleased)
+        {
+            stateMachine.ChangeState(player.jumpState);
+            return;
+        }
+
+        // 転がる
+        if (Mathf.Abs(input.Rotate) >= 0.1f)
+        {
+            stateMachine.ChangeState(player.rollState);
+            return;
+        }
+
+        // 通常の移動
+        if (input.Direction != Vector3.zero)
+        {
+            stateMachine.ChangeState(player.moveState);
+            return;
         }
     }
 }

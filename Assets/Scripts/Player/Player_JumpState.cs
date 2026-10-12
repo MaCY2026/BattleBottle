@@ -1,5 +1,3 @@
-using UnityEngine.InputSystem;
-
 public class Player_JumpState : State
 {
     public Player_JumpState(Player player, StateMachine stateMachine, string stateName) :
@@ -16,9 +14,6 @@ public class Player_JumpState : State
     public override void Update()
     {
         base.Update();
-
-        Keyboard keyboard = Keyboard.current;
-        if (keyboard == null) return;
 
         if (!player.groundDetected)
         {

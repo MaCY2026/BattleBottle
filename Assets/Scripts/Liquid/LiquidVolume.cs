@@ -30,6 +30,7 @@ public class LiquidVolume : MonoBehaviour
     double[] heights;
     // 低い順に並べた点のうち、水面に対応するインデックス。
     int surfaceRank = -1;
+    bool attemptedMissingDataBake;
 
     // 水の割合（Shaderに値を渡すためのId）
     static readonly int FillHeightId = Shader.PropertyToID("_FillHeight");
@@ -44,6 +45,13 @@ public class LiquidVolume : MonoBehaviour
         // モデルのメッシュを取得する。
         Mesh mesh = GetComponent<MeshFilter>().sharedMesh;
 
+        attemptedMissingDataBake = true;
+        if (mesh == null || !mesh.isReadable)
+        {
+            Debug.LogWarning("LiquidVolume: assign a readable mesh before baking volume points.", this);
+            return;
+        }
+
         // モデルの頂点を取得する。
         Vector3[] vertices = mesh.vertices;
 
@@ -51,21 +59,31 @@ public class LiquidVolume : MonoBehaviour
         localPoints = LiquidVolumeMath.Bake(
             vertices, mesh.triangles, Resolution, out double cellSize
         );
+        surfaceRank = -1;
 
         // 点の数を記録する。
         pointCount = localPoints.Length;
         // 囲むBoxを記録する。
         bakedBounds = mesh.bounds;
 
+        if (pointCount == 0)
+        {
+            Debug.LogWarning("LiquidVolume: no interior points found. Check that the liquid mesh is closed.", this);
+            return;
+        }
+
         // 表示を更新する。
         UpdateSurface();
 #if UNITY_EDITOR
+        if (!Application.IsPlaying(gameObject))
+            UnityEditor.EditorUtility.SetDirty(this);
         UnityEditor.SceneView.RepaintAll();
 #endif
     }
 
     void OnEnable()
     {
+        attemptedMissingDataBake = false;
         UpdateSurface();
     }
 
@@ -96,7 +114,15 @@ public class LiquidVolume : MonoBehaviour
 
     void UpdateSurface()
     {
+        if (localPoints == null || localPoints.Length == 0)
+        {
+            if (!attemptedMissingDataBake) BakeVolumePoints();
+            return;
+        }
+
         PrepareData();
+        pointCount = localPoints.Length;
+        Fill = float.IsNaN(Fill) ? 0f : Mathf.Clamp01(Fill);
 
         // 行列の Y 成分を座標変換して、heightsに追加する
         Matrix4x4 m = transform.localToWorldMatrix;
@@ -163,7 +189,8 @@ public class LiquidVolume : MonoBehaviour
     {
         worldPosition = Vector3.zero;
 
-        if (Fill <= 0f || localPoints == null || surfaceRank < 0)
+        if (Fill <= 0f || localPoints == null || localPoints.Length == 0 ||
+            surfaceRank < 0 || surfaceRank >= localPoints.Length)
             return false;
 
         // 水面以下の点をランダムに選ぶ

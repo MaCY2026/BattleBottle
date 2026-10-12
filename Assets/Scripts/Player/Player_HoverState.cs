@@ -1,5 +1,4 @@
 using UnityEngine;
-using UnityEngine.InputSystem;
 
 public class Player_HoverState : State
 {
@@ -21,24 +20,11 @@ public class Player_HoverState : State
         if (player.jetChargeLevel < 0.1f)
             player.jetChargeLevel = 0f;
 
-        //キー入力を待つ変数
-        Keyboard keyboard = Keyboard.current;
-        if (keyboard == null) return;
+        // 回転を更新
+        player.SetRotationSpeed(input.Rotate * player.rollAirSpeed);
 
-        //回転をくわえる変数
-        Vector3 deltaRotate = Vector3.zero;
-
-        //回転
-        if (keyboard.leftArrowKey.isPressed)
-            deltaRotate.z += 5.0f;
-        else if (keyboard.rightArrowKey.isPressed)
-            deltaRotate.z -= 5.0f;
-
-        //回転を更新
-        player.AddRotation(deltaRotate * player.rollSpeed * Time.deltaTime);
-
-        //もしZキーが押されたら
-        if (keyboard.zKey.isPressed)
+        // 噴射
+        if (input.JetHeld)
         {
             stateMachine.ChangeState(player.jetState);
         }

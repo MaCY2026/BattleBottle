@@ -1,5 +1,4 @@
 using UnityEngine;
-using UnityEngine.InputSystem;
 
 public class Player_MoveState : State
 {
@@ -12,39 +11,21 @@ public class Player_MoveState : State
     {
         base.Update();
 
-        Keyboard keyboard = Keyboard.current;
-        if (keyboard == null) return;
-
-        //位置を更新するための変数
-        Vector3 direction = Vector3.zero;
-        //回転をくわえる変数
-        Vector3 rotate = Vector3.zero;
-
-        //移動
-        if (keyboard.aKey.isPressed)
-            direction.x -= 1f;
-        else if (keyboard.dKey.isPressed)
-            direction.x += 1f;
-        // 斜め移動の処理
-        direction = direction.normalized;
-
-        //回転
-        if (keyboard.leftArrowKey.isPressed)
-            rotate.z += 5.0f;
-        else if (keyboard.rightArrowKey.isPressed)
-            rotate.z -= 5.0f;
-
         // 位置を更新
-        player.transform.position += direction * player.moveSpeed * Time.deltaTime;
-        //回転を更新
-        player.transform.eulerAngles += rotate * player.rollSpeed * Time.deltaTime;
+        player.AddPosition(input.Direction * player.moveSpeed * Time.deltaTime);
+        // 回転を更新
+        player.AddRotation(
+            new Vector3(0f, 0f, input.Rotate * player.rollAirSpeed * Time.deltaTime)
+        );
 
         //移動していなればステートをIdleにする
-        if (direction.x == 0 || rotate.z == 0)
-            stateMachine.ChangeState(player.idleState);
-        if (keyboard.zKey.isPressed)
+        if (input.JetHeld)
         {
             stateMachine.ChangeState(player.jetState);
+        }
+        else if (input.Direction == Vector3.zero)
+        {
+            stateMachine.ChangeState(player.idleState);
         }
     }
 }
